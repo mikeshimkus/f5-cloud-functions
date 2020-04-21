@@ -34,6 +34,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     group = os.environ['AZURE_RESOURCE_GROUP']
     resource = os.environ['AZURE_VMSS_NAME']
 
+    # get vmss instance ip addresses
     # Create MSI authentication - requires a system managed identity assigned to this function
     credentials = MSIAuthentication()
 
@@ -50,8 +51,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     # Create a dictionary of instances
     provisioned = []
     licensed = []
-    
-    # get vmss instance ip addresses
+
     vmss = computeClient.virtual_machine_scale_set_vms.list(group, resource)
     for instance in vmss:
         instance_name = instance.name
