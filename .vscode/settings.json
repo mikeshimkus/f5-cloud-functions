@@ -2,5 +2,6 @@
     "azureFunctions.deploySubpath": "f5-azure-bigiq-revoke",
     "azureFunctions.scmDoBuildDuringDeployment": true,
     "azureFunctions.projectLanguage": "Python",
-    "azureFunctions.projectRuntime": "~3"
+    "azureFunctions.projectRuntime": "~3",
+    "azureFunctions.projectSubpath": "f5-azure-bigiq-revoke"
 }
