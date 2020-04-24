@@ -111,11 +111,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Assignment dictionary: " + str(licensed))
 
     # Revoke licenses for missing, failed, or deleting instances
-    for licensed_thing in licensed[:]:
-        for provisioned_thing in provisioned:
-            if licensed_thing['mac_address'] in provisioned_thing['mac_address'] and \
-                    provisioned_thing['provisioning_state'] in ['Creating', 'Succeeded', 'Updating']:
-                        licensed.remove(licensed_thing)
+    if licensed:
+        for licensed_thing in licensed[:]:
+            for provisioned_thing in provisioned:
+                if licensed_thing['mac_address'] in provisioned_thing['mac_address'] and \
+                        provisioned_thing['provisioning_state'] in ['Creating', 'Succeeded', 'Updating']:
+                            licensed.remove(licensed_thing)
 
     logging.info("Revocation dictionary: " + str(licensed))
 
