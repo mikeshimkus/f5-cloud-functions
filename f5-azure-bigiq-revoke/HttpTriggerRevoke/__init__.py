@@ -114,8 +114,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     if licensed:
         for licensed_thing in licensed[:]:
             for provisioned_thing in provisioned:
-                if licensed_thing['mac_address'] in provisioned_thing['mac_address'] and \
-                        provisioned_thing['provisioning_state'] in ['Creating', 'Succeeded', 'Updating']:
+                if provisioned_thing['provisioning_state'] in ['Creating'] or \
+                    (provisioned_thing['provisioning_state'] in ['Succeeded', 'Updating'] and \
+                        licensed_thing['mac_address'] in provisioned_thing['mac_address']):                          
                             licensed.remove(licensed_thing)
 
     logging.info("Revocation dictionary: " + str(licensed))
