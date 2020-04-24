@@ -48,7 +48,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     computeClient = ComputeManagementClient(credentials, subscription_id)
     networkClient = NetworkManagementClient(credentials, subscription_id)
 
-    # Create a dictionary of instances
+    # Create dictionaries of provisioned and licensed instances
     provisioned = []
     licensed = []
 
@@ -58,18 +58,21 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         instance_id = instance.instance_id
         vmss_vm = computeClient.virtual_machine_scale_set_vms.get(group, resource, instance.instance_id)
         vmss_vm_provisioning_state = vmss_vm.provisioning_state
+        logging.info('Provisioning state for instance ' + instance_name + ' is: ' + vmss_vm_provisioning_state)
 
-        try: 
+        if vmss_vm_provisioning_state in ['Succeeded', 'Updating', 'Failed']: 
             nic = resourceClient.resources.get_by_id(
                 instance.network_profile.network_interfaces[0].id,
                 api_version='2017-12-01')
             ip_reference = nic.properties['ipConfigurations'][0]['properties']
             private_ip = ip_reference['privateIPAddress']
             mac_address = nic.properties['macAddress']
-        except AttributeError:
-            provisioning_state = None
-            private_ip = None
-            mac_address = None
+        elif vmss_vm_provisioning_state in ['Creating']: 
+            private_ip = 'creating'
+            mac_address = 'creating'
+        else:
+            private_ip = 'deleting'
+            mac_address = 'deleting'
 
         provisioned.append({
             'instance_name': instance_name, 
@@ -97,21 +100,24 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     if not assignments:
         raise Exception('Unable to locate any BIG-IQ assignments!')
 
+    # get all the license assignments for our tenant
     for assignment in assignments:  
-        licensed.append({          
-            'private_ip': assignment['deviceAddress'], 
-            'mac_address': assignment['macAddress']})
+        if assignment['tenant'] and assignment['tenant'] in os.environ['TENANT']:
+            licensed.append({          
+                'private_ip': assignment['deviceAddress'], 
+                'mac_address': assignment['macAddress'],
+                'tenant': assignment['tenant']})
 
     logging.info("Assignment dictionary: " + str(licensed))
 
+    # Revoke licenses for missing, failed, or deleting instances
     for licensed_thing in licensed[:]:
         for provisioned_thing in provisioned:
-            if licensed_thing['mac_address'] == provisioned_thing['mac_address'] and \
-                provisioned_thing['provisioning_state'] == 'Succeeded' or \
-                    provisioned_thing['provisioning_state'] == 'Creating':
+            if licensed_thing['mac_address'] in provisioned_thing['mac_address'] and \
+                    provisioned_thing['provisioning_state'] in ['Creating', 'Succeeded', 'Updating']:
                         licensed.remove(licensed_thing)
 
-    logging.info("Final dictionary: " + str(licensed))
+    logging.info("Revocation dictionary: " + str(licensed))
 
     if licensed:
         for unlicensed_thing in licensed:

@@ -3,5 +3,6 @@
     "azureFunctions.scmDoBuildDuringDeployment": true,
     "azureFunctions.projectLanguage": "Python",
     "azureFunctions.projectRuntime": "~3",
-    "azureFunctions.projectSubpath": "f5-azure-bigiq-revoke"
+    "azureFunctions.projectSubpath": "f5-azure-bigiq-revoke",
+    "python.pythonPath": "/Users/shimkus/git/f5-cloud-functions/.venv/bin/python"
 }
