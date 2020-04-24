@@ -1,0 +1,6 @@
+azure-mgmt-compute
+azure-mgmt-network
+azure-mgmt-resource
+azure-functions
+f5-sdk-python
+msrestazure
