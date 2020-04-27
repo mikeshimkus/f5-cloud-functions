@@ -34,6 +34,7 @@ This is the Azure function-as-a-service for revoking BIG-IQ license assignments.
 - Secret
   - Contains the BIG-IQ password
 - Application Insights
+- Virtual network integration: The function app must be configured for integration with a subnet located in the same virtual network as, or a virtual network that can route to, the BIG-IQ system; see https://docs.microsoft.com/en-us/azure/app-service/web-sites-integrate-with-vnet for more information
 
 # F5
 - BIG-IQ 6.1.0
