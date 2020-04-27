@@ -162,7 +162,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 config={
                     'assignmentType': 'UNREACHABLE',
                     'macAddress': unlicensed_thing['mac_address'],
-                    'hypervisor': 'azure',
+                    'hypervisor': 'azure'
                 }
             )
     else:

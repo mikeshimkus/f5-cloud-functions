@@ -8,7 +8,7 @@ This is the Azure function-as-a-service for revoking BIG-IQ license assignments.
 - Linux server farm:
   - kind: linux
   - properties.reserved: true
-- Function app
+- Function app:
   - identity.type: SystemAssigned
   - properties.siteConfig.linuxFxversion: PYTHON|3.7
   - properties.serverFarmId: Should be a reference to the aforementioned server farm
@@ -31,9 +31,9 @@ This is the Azure function-as-a-service for revoking BIG-IQ license assignments.
   - WEBSITE_NODE_DEFAULT_VERSION: ~12
 - Function app virtualNetworkConnections resource:
   - properties.vnetResourceId: Should be a reference to an empty subnet located in the same virtual network as, or a virtual network that can route to, the BIG-IQ system; see https://docs.microsoft.com/en-us/azure/app-service/web-sites-integrate-with-vnet for more information 
-- Key Vault
+- Key Vault:
   - Must have an access policy that grants get access to secrets to the tenantId and principalId of the function app system assigned identity
-- Secret
+- Secret:
   - Contains the BIG-IQ password
 - Application Insights
 
