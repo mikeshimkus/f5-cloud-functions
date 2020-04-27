@@ -15,7 +15,6 @@ from azure.mgmt.network import NetworkManagementClient
 from f5sdk.bigiq import ManagementClient
 from f5sdk.bigiq.licensing import AssignmentClient
 from f5sdk.bigiq.licensing.pools import MemberManagementClient, UtilityOfferingMembersClient
-from f5sdk.logger import Logger
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
