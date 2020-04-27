@@ -12,7 +12,7 @@ This is the Azure function-as-a-service for revoking BIG-IQ license assignments.
   - identity.type: SystemAssigned
   - properties.siteConfig.linuxFxversion: PYTHON|3.7
   - properties.serverFarmId: Should be a reference to the aforementioned server farm
-- Function app settings:
+- Function appsettings resource:
   - APPINSIGHTS_INSTRUMENTATIONKEY: The key to connect to Azure App Insights for telemetry streaming
   - AZURE_RESOURCE_GROUP: The name of the resource group where the VM scale set is deployed
   - AZURE_VMSS_NAME: The name of the VM scale set
@@ -29,12 +29,13 @@ This is the Azure function-as-a-service for revoking BIG-IQ license assignments.
   - TENANT: The name of the tenant that was specified when licensing the VM scale set instances
   - WEBSITE_ENABLE_SYNC_UPDATE_SITE: true
   - WEBSITE_NODE_DEFAULT_VERSION: ~12
+- Function app virtualNetworkConnections resource:
+  - properties.vnetResourceId: Should be a reference to an empty subnet located in the same virtual network as, or a virtual network that can route to, the BIG-IQ system; see https://docs.microsoft.com/en-us/azure/app-service/web-sites-integrate-with-vnet for more information 
 - Key Vault
   - Must have an access policy that grants get access to secrets to the tenantId and principalId of the function app system assigned identity
 - Secret
   - Contains the BIG-IQ password
 - Application Insights
-- Virtual network integration: The function app must be configured for integration with a subnet located in the same virtual network as, or a virtual network that can route to, the BIG-IQ system; see https://docs.microsoft.com/en-us/azure/app-service/web-sites-integrate-with-vnet for more information
 
 # F5
 - BIG-IQ 6.1.0
