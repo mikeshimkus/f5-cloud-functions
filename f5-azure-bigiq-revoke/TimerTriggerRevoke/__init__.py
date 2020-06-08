@@ -4,7 +4,7 @@
 
 import os
 import logging
-import json
+import datetime
 import azure.functions as func
 
 from msrestazure.azure_active_directory import MSIAuthentication
@@ -16,19 +16,11 @@ from f5sdk.bigiq import ManagementClient
 from f5sdk.bigiq.licensing import AssignmentClient
 from f5sdk.bigiq.licensing.pools import MemberManagementClient, UtilityOfferingMembersClient
 
-
-def main(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function processed a request.')
-    try:
-        req_body = req.get_json()
-    except Exception as _e:
-        return func.HttpResponse(
-            'Exception parsing JSON body: %s' % _e,
-            status_code=400
-        )
+def main(mytimer: func.TimerRequest) -> None:
+    utc_timestamp = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()
+    logging.info('Python timer trigger function ran at %s', utc_timestamp)
 
     # Set variables
-    operation = req_body['operation']
     group = os.environ['AZURE_RESOURCE_GROUP']
     resource = os.environ['AZURE_VMSS_NAME']
 
@@ -91,8 +83,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             'private_ip': private_ip, 
             'mac_address': mac_address.replace("-", ":")})
 
-    logging.info("Instance dictionary: " + str(provisioned))
-
+    logging.info('Instance dictionary: ' + str(provisioned))
 
     # Get all BIG-IQ license assignments
     mgmt_client = ManagementClient(
@@ -106,7 +97,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     assignments = assignments['items']
     
     if not assignments:
-        raise Exception('Unable to locate any BIG-IQ assignments!')
+        logging.info('Unable to locate any BIG-IQ assignments!')
+        return
 
     # Keep only the license assignments for our tenant
     for assignment in assignments:  
@@ -118,34 +110,36 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 'tenant': assignment['tenant']})
 
     if not licensed:
-        raise Exception('Unable to locate any licensed devices for this tenant!')
+        logging.info('Unable to locate any licensed devices for this tenant!')
+        return
     else:
         revoked = licensed
-        logging.info("Assignment dictionary: " + str(licensed))
+        logging.info('Assignment dictionary: ' + str(licensed))
         
     # Revoke licenses for failed, deleting, or missing instances
-    for licensed_thing in revoked[:]:
-        for provisioned_thing in provisioned:
-            if licensed_thing['mac_address'] == provisioned_thing['mac_address'] and \
-                    provisioned_thing['provisioning_state'] in ['Creating', 'Succeeded', 'Updating']:
-                        revoked.remove(licensed_thing)
+    for licensed_device in revoked[:]:
+        for provisioned_device in provisioned:
+            if licensed_device['mac_address'] == provisioned_device['mac_address'] and \
+                    provisioned_device['provisioning_state'] in ['Creating', 'Succeeded', 'Updating']:
+                        revoked.remove(licensed_device)
 
     if not revoked:
-        raise Exception('No licenses are eligible for revocation!')
+        logging.info('No licenses are eligible for revocation!')
+        return
     else:
-        logging.info("Revocation dictionary: " + str(revoked))
+        logging.info('Revocation dictionary: ' + str(revoked))
 
     if licensing_mode == 'pool':
         member_mgmt_client = MemberManagementClient(mgmt_client)
 
-        for unlicensed_thing in revoked:
+        for unlicensed_device in revoked:
             member_mgmt_client.create(
                 config={
                     'licensePoolName': os.environ['BIGIQ_LICENSE_POOL'],
                     'command': 'revoke',
-                    'address': unlicensed_thing['private_ip'],
+                    'address': unlicensed_device['private_ip'],
                     'assignmentType': 'UNREACHABLE',
-                    'macAddress': unlicensed_thing['mac_address'],
+                    'macAddress': unlicensed_device['mac_address'],
                     'hypervisor': 'azure'
                 }
             )
@@ -156,19 +150,17 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             offering_name=os.environ['BIGIQ_UTILITY_OFFER']
         )
 
-        for unlicensed_thing in revoked:
+        for unlicensed_device in revoked:
             utility_members_client.delete(
-                name=unlicensed_thing['id'],
+                name=unlicensed_device['id'],
                 config={
                     'assignmentType': 'UNREACHABLE',
-                    'macAddress': unlicensed_thing['mac_address'],
+                    'macAddress': unlicensed_device['mac_address'],
                     'hypervisor': 'azure'
                 }
             )
     else:
         raise Exception('Invalid BIG-IQ info specified, check app settings!')
 
-    return func.HttpResponse(
-            'Finished license revocation.',
-            status_code=200
-        )
+    logging.info('Finished license revocation.')   
+    return
