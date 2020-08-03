@@ -1,8 +1,14 @@
+## Contents
+
+- [Introduction](#introduction)
+- [Prerequisites](#prerequisites)
+- [Flow Chart](#flow-chart)
+
 # Introduction
 
 This is the Azure function-as-a-service for revoking BIG-IQ license assignments.
 
-# Requirements
+# Prerequisites
 ## Azure
 - Storage account: Any SKU is fine
 - Linux server farm:
@@ -41,3 +47,68 @@ This is the Azure function-as-a-service for revoking BIG-IQ license assignments.
 - BIG-IQ 6.1.0
 - Registration key pool or utility license
 - Tenant property specified for each license assignment
+
+## Flow Chart
+
+Flow Chart
+<br>
+<br>
+<br>
+```mermaid
+graph TD
+  start("Periodic Timer<br>(every 2 min)");
+  script("timer_trigger_revoke");
+  lic_mode("Determine BIGIQ lic mode");
+  pool("pool licensing");
+  utility("Utilitiy licensing");
+  provisioned("Queries Specified VMSS<br>for provisioned instances");
+  setinfo("Set provision state<br>set instance:<br>name,id,state,ip,<br>and mac address");
+  assign("Queries BIGIQ for<br>assigned licenses");
+  tenant("Filter assigned licences<br> by tenant field using<br>TENANT OS environmental<br> variable");
+  state("Filter new list by state.<br>Removing assigned licenses<br>when state<br>'Creating', 'Succeeded', or 'Updating'");
+  revoke("Revoke licenses using final<br>list based on license Type");
+  start-. "execute python script<br>'timer_trigger_revoke'" .->script;
+  subgraph Script FLOW;
+  script-.->lic_mode;
+  lic_mode-.->pool;
+  lic_mode-.->utility;
+  script-.->provisioned;
+  provisioned-.->setinfo;
+  script-.->assign;
+  assign-.->tenant;
+  tenant-.->state;
+  setinfo-.->state;
+  end;
+  subgraph Revoke Licenses;
+  state-.->revoke;
+  lic_mode-.->revoke;
+  end;
+```
+
+<br>
+<br>
+<br>
+
+
+## Copyright
+
+Copyright 2014-2020 F5 Networks Inc.
+
+## License
+
+### Apache V2.0
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License [here](http://www.apache.org/licenses/LICENSE-2.0).
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and limitations
+under the License.
+
+### Contributor License Agreement
+
+Individuals or business entities who contribute to this project must have
+completed and submitted the F5 Contributor License Agreement.
