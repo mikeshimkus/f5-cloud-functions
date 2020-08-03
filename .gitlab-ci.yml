@@ -1,0 +1,99 @@
+image: python:3.7
+
+stages:
+    - test
+    - docs
+    - build
+
+variables:
+    GIT_SECRETS_VERSION: '1.3.0'
+    GIT_SECRETS_PKG_URL: "https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.tar.gz"
+
+# run linter
+test_lint:
+    stage: test
+    script:
+        # install packages
+        - cd f5-azure-bigiq-revoke
+        - pip install -r tests/requirements.txt
+        # run linter
+        - make lint
+    tags:
+        - cm-official-docker-executor
+
+# unit tests: python 3.7+
+test_unit:
+    stage: test
+    script:
+        # install packages
+        - cd f5-azure-bigiq-revoke
+        - pip install -r tests/requirements.txt
+        # run unit tests
+        - make test
+    tags:
+        - cm-official-docker-executor
+
+# dependency security check
+test_security_check:
+    stage: test
+    script:
+        # install packages
+        - cd f5-azure-bigiq-revoke
+        - pip install -r tests/requirements.txt
+        # run dependency check
+        - safety check -r tests/requirements.txt
+    tags:
+        - cm-official-docker-executor
+
+# check for disallowed content within any file in source control, this
+# supplements the native pre-receive push rules built into GitLab for secrets
+# note: .gitallowed is used for exceptions
+check_content:
+    image: f5devcentral/containthedocs:rpmbuild
+    stage: test
+    script:
+        # install git-secrets
+        - curl -q -L -o git_secrets.tar.gz ${GIT_SECRETS_PKG_URL}
+        - tar xzf git_secrets.tar.gz
+        - cd git-secrets-${GIT_SECRETS_VERSION} && make install && cd ..
+        # now, add any patterns to disallow
+        - git secrets --add '.*f5.*\.com'
+        # scan
+        - git secrets --scan
+    tags:
+        - cm-official-docker-executor
+
+# generate code coverage docs
+docs_code_coverage:
+    stage: docs
+    script:
+        # install packages
+        - cd f5-azure-bigiq-revoke
+        - pip install -r tests/requirements.txt
+        # generate coverage
+        - make coverage
+    tags:
+        - cm-official-docker-executor
+    artifacts:
+        name: ${CI_COMMIT_REF_NAME}_code_coverage
+        paths:
+            - f5-azure-bigiq-revoke/code_coverage
+        expire_in: 1 month
+
+# generate python script package
+timer_trigger_revoke_package:
+    stage: build
+    script:
+        # install packages
+        - cd f5-azure-bigiq-revoke
+        - pip install -r tests/requirements.txt
+    tags:
+        - cm-official-docker-executor
+    artifacts:
+        name: ${CI_COMMIT_REF_NAME}_timer_trigger_revoke
+        paths:
+            - f5-azure-bigiq-revoke/timer_trigger_revoke
+            - f5-azure-bigiq-revoke/host.json
+            - f5-azure-bigiq-revoke/proxies.json
+            - f5-azure-bigiq-revoke/requirements.txt
+        expire_in: 1 month
