@@ -4,10 +4,13 @@ stages:
     - test
     - docs
     - build
+    - publish
 
 variables:
     GIT_SECRETS_VERSION: '1.3.0'
     GIT_SECRETS_PKG_URL: "https://github.com/awslabs/git-secrets/archive/${GIT_SECRETS_VERSION}.tar.gz"
+    TIMER_TRIGGER_REVOKE_FILE: "timer_trigger_revoke.zip"
+    TIMER_TRIGGER_REVOKE_VERSION: "v0.1.0"
 
 # run linter
 test_lint:
@@ -83,6 +86,12 @@ docs_code_coverage:
 # generate python script package
 timer_trigger_revoke_package:
     stage: build
+    only:
+        changes:
+            - f5-azure-bigiq-revoke/timer_trigger_revoke/*
+            - f5-azure-bigiq-revoke/host.json
+            - f5-azure-bigiq-revoke/proxies.json
+            - f5-azure-bigiq-revoke/requirements.txt
     script:
         # install packages
         - cd f5-azure-bigiq-revoke
@@ -97,3 +106,57 @@ timer_trigger_revoke_package:
             - f5-azure-bigiq-revoke/proxies.json
             - f5-azure-bigiq-revoke/requirements.txt
         expire_in: 1 month
+
+# Generate and publish timer_trigger_revoke.zip to CDN
+publish_timer_trigger_revoke_dev_cdn:
+    stage: publish
+    only:
+        variables:
+            - $CI_COMMIT_REF_NAME == "develop"
+            - $PUBLISH_FUNCTION_DEVELOP == "true"
+            - $CI_COMMIT_MESSAGE =~ /smart:run_publish_develop_cdn/
+    tags:
+        - docker-executor
+    script:
+        # publish TimerTriggerRevoke to F5 CDN - develop
+        - apt-get update -y
+        - apt-get install zip unzip -y
+        - zip -r ${TIMER_TRIGGER_REVOKE_FILE} f5-azure-bigiq-revoke/timer_trigger_revoke f5-azure-bigiq-revoke/host.json f5-azure-bigiq-revoke/proxies.json f5-azure-bigiq-revoke/requirements.txt
+        - CDN_FOLDER="f5-cloud-functions"
+        - AUTH_OPTS="--username ${CDN_SVC_ACCOUNT_USER} --password ${CDN_SVC_ACCOUNT_PWD} --non-interactive"
+        - svn co ${F5_CDN_SVN_ROOT}/cloudsolutions/${CDN_FOLDER} ${AUTH_OPTS}
+        - mkdir -p ${CDN_FOLDER}/azure/TimerTriggerRevoke/develop
+        - cp ${TIMER_TRIGGER_REVOKE_FILE} ${CDN_FOLDER}/azure/TimerTriggerRevoke/develop
+        - cd ${CDN_FOLDER}/azure/TimerTriggerRevoke
+        - status=$(svn status)
+        - if echo "$status" | grep -F '?' | grep -v 'timer_trigger_revoke.zip'; then svn add develop; else echo "No new directory to add"; fi
+        - svn diff
+        - changed_files_count=$(svn diff --summarize | wc -l)
+        - if [[ $changed_files_count -ge 1 ]]; then svn add --force develop/${TIMER_TRIGGER_REVOKE_FILE}; svn commit -m "F5 automation templates project automation - ${CI_COMMIT_REF_NAME}" ${AUTH_OPTS}; else echo "TimerTriggerRevoke.zip file is unchanged"; fi
+
+
+publish_timer_trigger_revoke_cdn:
+    stage: publish
+    only:
+        variables:
+            - $CI_COMMIT_REF_NAME == "master"
+            - $PUBLISH_FUNCTION == "true"
+            - $CI_COMMIT_MESSAGE =~ /smart:run_publish_cdn/
+    tags:
+        - docker-executor
+    script:
+        # publish TimerTriggerRevoke to F5 CDN - published to directory version specified in ${TIMER_TRIGGER_REVOKE_VERSION}
+        - apt-get update -y
+        - apt-get install zip unzip -y
+        - zip -r ${TIMER_TRIGGER_REVOKE_FILE} f5-azure-bigiq-revoke/timer_trigger_revoke f5-azure-bigiq-revoke/host.json f5-azure-bigiq-revoke/proxies.json f5-azure-bigiq-revoke/requirements.txt
+        - CDN_FOLDER="f5-cloud-functions"
+        - AUTH_OPTS="--username ${CDN_SVC_ACCOUNT_USER} --password ${CDN_SVC_ACCOUNT_PWD} --non-interactive"
+        - svn co ${F5_CDN_SVN_ROOT}/cloudsolutions/${CDN_FOLDER} ${AUTH_OPTS}
+        - mkdir -p ${CDN_FOLDER}/azure/TimerTriggerRevoke/${TIMER_TRIGGER_REVOKE_VERSION}
+        - cp ${TIMER_TRIGGER_REVOKE_FILE} ${CDN_FOLDER}/azure/TimerTriggerRevoke/${TIMER_TRIGGER_REVOKE_VERSION}
+        - cd ${CDN_FOLDER}/azure/TimerTriggerRevoke
+        - status=$(svn status)
+        - if echo "$status" | grep -F '?' | grep -v 'timer_trigger_revoke.zip'; then svn add ${TIMER_TRIGGER_REVOKE_VERSION}; else echo "No new directory to add"; fi
+        - svn diff
+        - changed_files_count=$(svn diff --summarize | wc -l)
+        - if [[ $changed_files_count -ge 1 ]]; then svn add --force ${TIMER_TRIGGER_REVOKE_VERSION}/${TIMER_TRIGGER_REVOKE_FILE}; svn commit -m "F5 automation templates project automation - ${CI_COMMIT_REF_NAME}" ${AUTH_OPTS}; else echo "timer_trigger_revoke.zip file is unchanged"; fi

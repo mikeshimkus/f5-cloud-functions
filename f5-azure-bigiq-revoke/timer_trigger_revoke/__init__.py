@@ -172,6 +172,6 @@ def main(mytimer: func.TimerRequest) -> None:
     assignments = get_bigiq_assignments(mgmt_client)
     tenant_filtered = filter_tenant_assignments(assignments)
     state_filtered = filter_provisioning_state(tenant_filtered, provisioned)
-    # Revoke
+    # Revoke licenses
     revoke(licensing_mode, state_filtered, mgmt_client)
     logging.info('Finished license revocation.')
