@@ -121,7 +121,10 @@ publish_timer_trigger_revoke_dev_cdn:
         # publish TimerTriggerRevoke to F5 CDN - develop
         - apt-get update -y
         - apt-get install zip unzip -y
-        - zip -r ${TIMER_TRIGGER_REVOKE_FILE} f5-azure-bigiq-revoke/timer_trigger_revoke f5-azure-bigiq-revoke/host.json f5-azure-bigiq-revoke/proxies.json f5-azure-bigiq-revoke/requirements.txt
+        - DIR=$PWD
+        - cd f5-azure-bigiq-revoke
+        - zip -r ${DIR}/${TIMER_TRIGGER_REVOKE_FILE} timer_trigger_revoke host.json proxies.json requirements.txt
+        - cd ${DIR}
         - CDN_FOLDER="f5-cloud-functions"
         - AUTH_OPTS="--username ${CDN_SVC_ACCOUNT_USER} --password ${CDN_SVC_ACCOUNT_PWD} --non-interactive"
         - svn co ${F5_CDN_SVN_ROOT}/cloudsolutions/${CDN_FOLDER} ${AUTH_OPTS}
@@ -148,7 +151,10 @@ publish_timer_trigger_revoke_cdn:
         # publish TimerTriggerRevoke to F5 CDN - published to directory version specified in ${TIMER_TRIGGER_REVOKE_VERSION}
         - apt-get update -y
         - apt-get install zip unzip -y
-        - zip -r ${TIMER_TRIGGER_REVOKE_FILE} f5-azure-bigiq-revoke/timer_trigger_revoke f5-azure-bigiq-revoke/host.json f5-azure-bigiq-revoke/proxies.json f5-azure-bigiq-revoke/requirements.txt
+        - DIR=$PWD
+        - cd f5-azure-bigiq-revoke
+        - zip -r ${DIR}/${TIMER_TRIGGER_REVOKE_FILE} timer_trigger_revoke host.json proxies.json requirements.txt
+        - cd ${DIR}
         - CDN_FOLDER="f5-cloud-functions"
         - AUTH_OPTS="--username ${CDN_SVC_ACCOUNT_USER} --password ${CDN_SVC_ACCOUNT_PWD} --non-interactive"
         - svn co ${F5_CDN_SVN_ROOT}/cloudsolutions/${CDN_FOLDER} ${AUTH_OPTS}
