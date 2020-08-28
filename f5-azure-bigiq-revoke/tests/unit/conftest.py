@@ -7,11 +7,14 @@ import pytest
 def mock_bigiq_pool(monkeypatch):
     """Set: BIGIQ license pool"""
     monkeypatch.setenv("BIGIQ_LICENSE_POOL", "test_pool")
+    monkeypatch.setenv("BIGIQ_UTILITY_KEY", "")
+    monkeypatch.setenv("BIGIQ_UTILITY_OFFER", "")
 
 
 @pytest.fixture
 def mock_bigiq_utility(monkeypatch):
     """Set: BIGIQ utility key and offer"""
+    monkeypatch.setenv("BIGIQ_LICENSE_POOL", "")
     monkeypatch.setenv("BIGIQ_UTILITY_KEY", "test_utility_key")
     monkeypatch.setenv("BIGIQ_UTILITY_OFFER", "test_utility_offer")
 
@@ -27,9 +30,9 @@ def mock_bigiq_all(monkeypatch):
 @pytest.fixture
 def mock_bigiq_all_missing(monkeypatch):
     """Remove: BIGIQ license pool, utility key and offer"""
-    monkeypatch.delenv("BIGIQ_LICENSE_POOL", raising=False)
-    monkeypatch.delenv("BIGIQ_UTILITY_KEY", raising=False)
-    monkeypatch.delenv("BIGIQ_UTILITY_OFFER", raising=False)
+    monkeypatch.setenv("BIGIQ_LICENSE_POOL", "")
+    monkeypatch.setenv("BIGIQ_UTILITY_KEY", "")
+    monkeypatch.setenv("BIGIQ_UTILITY_OFFER", "")
 
 
 @pytest.fixture
@@ -54,11 +57,13 @@ def mock_main_env_variables_missing(monkeypatch):
 
 @pytest.fixture
 def mock_tenant_variables(monkeypatch):
-    """Set: TENANT var"""
+    """Set: TENANT and AZURE_VMSS_NAME vars"""
     monkeypatch.setenv("TENANT", "my_tenant")
+    monkeypatch.setenv("AZURE_VMSS_NAME", "my_vmss_name")
 
 
 @pytest.fixture
 def mock_tenant_variables_missing(monkeypatch):
-    """Remove: TENANT var"""
+    """Remove: TENANT and AZURE_VMSS_NAME vars"""
     monkeypatch.delenv("TENANT", raising=False)
+    monkeypatch.delenv("AZURE_VMSS_NAME", raising=False)
