@@ -19,15 +19,24 @@ from f5sdk.bigiq.licensing import AssignmentClient
 from f5sdk.bigiq.licensing.pools import MemberManagementClient, UtilityOfferingMembersClient
 
 
+def get_property(obj, key, default):
+    """Check if object has a property"""
+    try:
+        ret = obj[key]
+    except KeyError:
+        ret = default
+    return ret
+
+
 def get_pool_lic_type():
     """Return BIGIQ license pool type"""
-    if "BIGIQ_LICENSE_POOL" in os.environ and \
-        "BIGIQ_UTILITY_KEY" not in os.environ and \
-            "BIGIQ_UTILITY_OFFER" not in os.environ:
+    if os.environ['BIGIQ_LICENSE_POOL'] and \
+        not os.environ['BIGIQ_UTILITY_KEY'] and \
+            not os.environ['BIGIQ_UTILITY_OFFER']:
         licensing_mode = 'pool'
-    elif "BIGIQ_LICENSE_POOL" not in os.environ and \
-        "BIGIQ_UTILITY_KEY" in os.environ and \
-            "BIGIQ_UTILITY_OFFER" in os.environ:
+    elif os.environ['BIGIQ_UTILITY_KEY'] and \
+        os.environ['BIGIQ_UTILITY_OFFER'] and \
+            not os.environ['BIGIQ_LICENSE_POOL']:
         licensing_mode = 'utility'
     else:
         raise Exception('You must provide either a registration key pool name or a utility license key and offer name, but not both!')
@@ -37,30 +46,23 @@ def get_pool_lic_type():
 def get_vmss_instances(group, resource, compute_client, resource_client):
     """Get a list of all instances in specified vm scale set"""
     provisioned = []
-    vmss = compute_client.virtual_machine_scale_set_vms.list(group, resource)
+    vmss = compute_client.virtual_machine_scale_set_vms.list(group, resource, expand='instanceView')
     for instance in vmss:
         instance_name = instance.name
-        instance_id = instance.instanceId
-        vmss_vm = compute_client.virtual_machine_scale_set_vms.get(group, resource, instance_id)
-        vmss_vm_provisioning_state = vmss_vm.provisioning_state
+        instance_id = instance.instance_id
+        vmss_vm_provisioning_state = instance.provisioning_state
         logging.info('Provisioning state for instance ' + instance_name + ' is: ' + vmss_vm_provisioning_state)
-        if vmss_vm_provisioning_state in ['Succeeded', 'Updating', 'Failed']:
+        if vmss_vm_provisioning_state in ['Creating', 'Succeeded', 'Updating']:
             nic = resource_client.resources.get_by_id(instance.network_profile.network_interfaces[0].id, api_version='2017-12-01')
             ip_reference = nic.properties['ipConfigurations'][0]['properties']
-            private_ip = ip_reference['privateIPAddress']
-            mac_address = nic.properties['macAddress']
-        elif vmss_vm_provisioning_state in ['Creating']:
-            private_ip = 'creating'
-            mac_address = 'creating'
-        else:
-            private_ip = 'deleting'
-            mac_address = 'deleting'
-        provisioned.append({
-            'instance_name': instance_name,
-            'instance_id': instance_id,
-            'provisioning_state': vmss_vm_provisioning_state,
-            'private_ip': private_ip,
-            'mac_address': mac_address.replace("-", ":")})
+            private_ip = get_property(ip_reference, 'privateIPAddress', 'creating')
+            mac_address = get_property(nic.properties, 'macAddress', 'creating')
+            provisioned.append({
+                'instance_name': instance_name,
+                'instance_id': instance_id,
+                'provisioning_state': vmss_vm_provisioning_state,
+                'private_ip': private_ip,
+                'mac_address': mac_address.replace("-", ":")})
     logging.info('Instance dictionary: %s', str(provisioned))
     return provisioned
 
@@ -81,13 +83,18 @@ def filter_tenant_assignments(assignments):
     licensed = []
     if os.getenv("TENANT") is None:
         raise KeyError('TENANT is undefined and is required')
+    if os.getenv("AZURE_VMSS_NAME") is None:
+        raise KeyError('AZURE_VMSS_NAME is undefined and is required')
     for assignment in assignments:
-        if assignment['tenant'] and assignment['tenant'] in os.environ['TENANT']:
-            licensed.append({
-                'private_ip': assignment['deviceAddress'],
-                'mac_address': assignment['macAddress'],
-                'id': assignment['id'],
-                'tenant': assignment['tenant']})
+        if assignment['tenant']:
+            if os.environ['TENANT'] == assignment['tenant'] or \
+                (os.environ['TENANT'] == os.environ['AZURE_VMSS_NAME'] and \
+                    len(assignment['tenant'][assignment['tenant'].rfind(os.environ['TENANT']):assignment['tenant'].rfind('-')]) == len(os.environ['TENANT'])):
+                licensed.append({
+                    'private_ip': assignment['deviceAddress'],
+                    'mac_address': assignment['macAddress'],
+                    'id': assignment['id'],
+                    'tenant': assignment['tenant']})
     if not licensed:
         logging.info('Unable to locate any licensed devices for this tenant!')
     else:
@@ -96,11 +103,11 @@ def filter_tenant_assignments(assignments):
 
 
 def filter_provisioning_state(tenant_filtered, provisioned):
-    """Remove licenses from revoke list when provisioning state: Creating, Succeeded, or Updating"""
+    """Remove licenses from revoke list when provisioning state: Creating, Succeeded, or Updating and mac address matches a licensed instance"""
     for licensed_device in tenant_filtered[:]:
         for provisioned_device in provisioned:
-            if licensed_device['mac_address'] == provisioned_device['mac_address'] and \
-                    provisioned_device['provisioning_state'] in ['Creating', 'Succeeded', 'Updating']:
+            if provisioned_device['mac_address'] != 'creating' and \
+                licensed_device['mac_address'] == provisioned_device['mac_address']:
                 tenant_filtered.remove(licensed_device)
     if not tenant_filtered:
         logging.info('No licenses are eligible for revocation!')
